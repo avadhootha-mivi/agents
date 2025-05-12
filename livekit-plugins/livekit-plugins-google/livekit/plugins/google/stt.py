@@ -549,15 +549,20 @@ class SpeechStream(stt.SpeechStream):
                 if self._stt._api_version == "v1":
                     # process v1 streaming results
                     for result in resp.results:
+                        # print(result)
                         if not result.alternatives:
                             continue
                         alt = result.alternatives[0]
-                        # filter out low-confidence results
-                        if alt.confidence < self._config.min_confidence_threshold:
+                        if not alt:
+                            logger.debug("skipping empty result from google STT v1")
+                            continue
+
+                        if (
+                            alt.confidence > 0
+                            and alt.confidence < self._config.min_confidence_threshold
+                        ):
                             logger.debug(
-                                "skipping low-confidence result from google STT",
-                                confidence=alt.confidence,
-                                text=alt.transcript,
+                                f"skipping low-confidence from google STT v1: confidence={alt.confidence}, text={alt.transcript}"
                             )
                             continue
 
@@ -717,9 +722,7 @@ def _streaming_recognize_response_to_speech_data(
     lg = resp.results[0].language_code
     if confidence < min_confidence_threshold or text == "":
         logger.debug(
-            "skipping low-confidence or empty result from google STT",
-            confidence=confidence,
-            text=text,
+            f"skipping low-confidence from google STT v2: confidence={confidence}, text={text}"
         )
         return None
     # streaming responses have no offsets in interim, set zero
